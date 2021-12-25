@@ -7,6 +7,7 @@ using ZXing.QrCode;
 using epoching.easy_debug_on_the_phone;
 using UnityEngine.UI;
 using epoching.easy_gui;
+using TMPro;
 
 namespace epoching.easy_qr_code
 {
@@ -16,13 +17,19 @@ namespace epoching.easy_qr_code
         public RawImage raw_image_video;
 
         [Header("audio source")]
-        public AudioSource audio_source;
+        //public AudioSource audio_source;
 
         //camera texture
         private WebCamTexture cam_texture;
 
         //is reading qr_code
         private bool is_reading = false;
+
+
+        public GameObject scanQRObject;
+        public GameObject transactionScreen;
+        public GameObject walletScreen;
+
 
         void OnEnable()
         {
@@ -100,14 +107,16 @@ namespace epoching.easy_qr_code
                         {
                             // decode the current frame
                             var result = barcodeReader.Decode(this.cam_texture.GetPixels32(), this.cam_texture.width, this.cam_texture.height);
-                            if (result != null)
+                            Prometheum pro = new Prometheum();
+                            
+                            if (result != null && pro.ControlAddress(result.Text))
                             {
                                 Canvas_confirm_box.confirm_box
                                 (
-                                    "detect qr code",
+                                    "Detect Address",
                                     result.Text,
                                     "cancel",
-                                    "jump to link",
+                                    "JUMP",
                                      delegate ()
                                      {
                                          this.is_reading = true;
@@ -115,7 +124,12 @@ namespace epoching.easy_qr_code
                                      delegate ()
                                      {
                                          Debug.Log("jump to link");
-                                         Application.OpenURL(result.Text);
+                                         //Application.OpenURL(result.Text);
+                                         scanQRObject.gameObject.SetActive(false);
+                                         walletScreen.gameObject.SetActive(false);
+                                         transactionScreen.gameObject.SetActive(true);
+                                         var otherAddress = GameObject.Find("Other Address");
+                                         otherAddress.GetComponent<TMP_InputField>().text = result.Text;
                                          this.is_reading = true;
                                      }
                                 );
@@ -123,7 +137,7 @@ namespace epoching.easy_qr_code
 
                                 this.is_reading = false;
 
-                                this.audio_source.Play();
+                                //this.audio_source.Play();
                             }
                         }
                     }

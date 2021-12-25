@@ -61,6 +61,10 @@ public class Account
         public float balance { get; set; }
     }
 
+    public class AddressList
+    {
+        public List<string> addresslist { get; set; }
+    }
 
 
 

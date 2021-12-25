@@ -38,6 +38,7 @@ public class Prometheum : MonoBehaviour
     public GameObject listMessagesScreen;
     public GameObject walletScreen;
     public GameObject transactionScreen;
+    public GameObject scanQRObject;
 
 
     public TMP_InputField otherPublicAddress;
@@ -56,7 +57,7 @@ public class Prometheum : MonoBehaviour
         messageButton.gameObject.SetActive(false);
         mineButton.gameObject.SetActive(false);
         walletButton.gameObject.SetActive(false);
-        PlayerPrefs.DeleteAll();
+        //PlayerPrefs.DeleteAll();
 
         if (PlayerPrefs.HasKey("address") && PlayerPrefs.HasKey("private_key"))
         {
@@ -180,30 +181,50 @@ public class Prometheum : MonoBehaviour
 
     public void GenerateAccount()
     {
-
-        account.address = CalculatePublicAddress();
-        account.private_key = CalculatePrivateKey();
-
-        public_address.text = account.address;
-        private_key.text = account.private_key;
-
-
-        var httpWebRequest = (HttpWebRequest)WebRequest.Create(url + "generate_account");
-        httpWebRequest.ContentType = "application/json";
-        httpWebRequest.Method = "POST";
-
-        using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+        try
         {
-            string json = JsonConvert.SerializeObject(account);
-            streamWriter.Write(json);
+            account.address = CalculatePublicAddress();
+            account.private_key = CalculatePrivateKey();
+
+            public_address.text = account.address;
+            private_key.text = account.private_key;
+
+
+            var httpWebRequest = (HttpWebRequest)WebRequest.Create(url + "generate_account");
+            httpWebRequest.ContentType = "application/json";
+            httpWebRequest.Method = "POST";
+
+            using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+            {
+                string json = JsonConvert.SerializeObject(account);
+                streamWriter.Write(json);
+            }
+
+            var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+            {
+                var result = streamReader.ReadToEnd();
+                Debug.Log(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            public_address.text = "";
+            private_key.text = "";
+            StartCoroutine(GenerateAccountIssue(ex));
         }
 
-        var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
-        using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
-        {
-            var result = streamReader.ReadToEnd();
-            Debug.Log(result);
-        }
+    }
+
+    private IEnumerator GenerateAccountIssue(Exception ex)
+    {
+        mineMessage.gameObject.SetActive(true);
+        mineMessage.color = Color.red;
+        mineMessage.GetComponentInChildren<TextMeshProUGUI>().text = ex.Message + " Try Agein Later:(";
+        yield return new WaitForSeconds(1.5f);
+        mineMessage.gameObject.SetActive(false);
+
+
     }
 
     public bool ControlAccount(string address, string private_key)
@@ -315,6 +336,7 @@ public class Prometheum : MonoBehaviour
             walletButton.gameObject.SetActive(true);
             StartCoroutine(ShowSaveMessage());
             GetAllProCoinFromAddress(PlayerPrefs.GetString("address"));
+            PlayerPrefs.DeleteKey("AddressList");
         }
         else
         {
@@ -353,6 +375,7 @@ public class Prometheum : MonoBehaviour
     {
         mainScreen.gameObject.SetActive(false);
         listMessagesScreen.gameObject.SetActive(true);
+        GetAllAddressFromComingMessage();
         GetAllAddressFromYourMessage();
 
         //messageScreen.gameObject.SetActive(true);
@@ -492,9 +515,9 @@ public class Prometheum : MonoBehaviour
                     }
 
                     string[] controlAmount = data.receiver_message[i].Split(',');
-                    if(controlAmount.Length > 0)
+                    if (controlAmount.Length > 0)
                     {
-                        if(controlAmount[0] != "f0b6081f8b6f472b8d27ca04537e50c4d2a17d6f05fe466db0fbf89cfe1e51f0")
+                        if (controlAmount[0] != "f0b6081f8b6f472b8d27ca04537e50c4d2a17d6f05fe466db0fbf89cfe1e51f0")
                         {
                             GameObject g = new GameObject(data.receiver_message[i]);
                             TextMeshProUGUI t = g.AddComponent<TextMeshProUGUI>();
@@ -520,7 +543,7 @@ public class Prometheum : MonoBehaviour
                         t.text = data.receiver_message[i];
                     }
 
-                     
+
 
 
 
@@ -529,11 +552,11 @@ public class Prometheum : MonoBehaviour
                 var count2 = data.sender_message.Length;
                 RectTransform parent2 = listView2.GetComponent<RectTransform>();
                 var isBiggerFive2 = false;
-                 
+
 
                 for (int i = 0; i < data.sender_message.Length; i++)
                 {
-                   
+
                     if (count2 > 5 && !isBiggerFive2)
                     {
                         var last = count2 - 5;
@@ -545,7 +568,7 @@ public class Prometheum : MonoBehaviour
 
                     if (controlAmount2.Length > 0)
                     {
-                        if(controlAmount2[0] != "f0b6081f8b6f472b8d27ca04537e50c4d2a17d6f05fe466db0fbf89cfe1e51f0")
+                        if (controlAmount2[0] != "f0b6081f8b6f472b8d27ca04537e50c4d2a17d6f05fe466db0fbf89cfe1e51f0")
                         {
                             GameObject g2 = new GameObject(data.sender_message[i]);
                             TextMeshProUGUI t2 = g2.AddComponent<TextMeshProUGUI>();
@@ -570,9 +593,9 @@ public class Prometheum : MonoBehaviour
                         t2.color = Color.black;
                         t2.text = data.sender_message[i];
                     }
-                    
-                    
-                  
+
+
+
 
                 }
 
@@ -635,21 +658,36 @@ public class Prometheum : MonoBehaviour
                 {
                     string[] takeAddress = PlayerPrefs.GetString("AddressList").Split(',');
                     string result = "";
+                    var isSame = false;
                     for (int i = 0; i < takeAddress.Length; i++)
                     {
                         result += takeAddress[i] + ",";
+                        if (takeAddress[i] == address)
+                            isSame = true;
                     }
-                    result += address + ",";
-                    PlayerPrefs.SetString("AddressList", result);
+
+                    if (!isSame)
+                    {
+                        result += address + ",";
+                        PlayerPrefs.SetString("AddressList", result);
+                        StartCoroutine(AddressValidMessage());
+
+                    }
+                    else
+                    {
+                        StartCoroutine(AddressInValidMessage());
+                    }
+
 
                 }
                 else
                 {
+                    StartCoroutine(AddressValidMessage());
                     PlayerPrefs.SetString("AddressList", address + ",");
                 }
 
 
-                StartCoroutine(AddressValidMessage());
+                //StartCoroutine(AddressValidMessage());
 
             }
             else
@@ -671,8 +709,8 @@ public class Prometheum : MonoBehaviour
     private IEnumerator AddressInValidMessage()
     {
         addAddressBackground.GetComponentInChildren<TMP_InputField>().image.color = Color.red;
-        addAddressBackground.GetComponentInChildren<TMP_InputField>().text = "Address Invalid";
-        yield return new WaitForSeconds(2);
+        addAddressBackground.GetComponentInChildren<TMP_InputField>().text = "Address Invalid!";
+        yield return new WaitForSeconds(1.5f);
         addAddressBackground.GetComponentInChildren<TMP_InputField>().image.color = Color.white;
         addAddressBackground.GetComponentInChildren<TMP_InputField>().text = "";
 
@@ -682,8 +720,8 @@ public class Prometheum : MonoBehaviour
     private IEnumerator AddressValidMessage()
     {
         addAddressBackground.GetComponentInChildren<TMP_InputField>().image.color = Color.green;
-        addAddressBackground.GetComponentInChildren<TMP_InputField>().text = "Address Save";
-        yield return new WaitForSeconds(2);
+        addAddressBackground.GetComponentInChildren<TMP_InputField>().text = "Success!";
+        yield return new WaitForSeconds(1.5f);
         addAddressBackground.GetComponentInChildren<TMP_InputField>().image.color = Color.white;
         addAddressBackground.GetComponentInChildren<TMP_InputField>().text = "";
 
@@ -727,13 +765,17 @@ public class Prometheum : MonoBehaviour
             {
                 if (!string.IsNullOrEmpty(address[i]))
                 {
-                    GameObject t = Instantiate(exButton, new Vector3(), Quaternion.identity);
-                    t.GetComponent<RectTransform>().SetParent(parents);
-                    t.GetComponentInChildren<Text>().fontSize = 40;
-                    t.GetComponentInChildren<Text>().font = label.GetComponent<Text>().font;
-                    t.GetComponentInChildren<Text>().color = Color.black;
-                    t.GetComponentInChildren<Text>().text = address[i];
-                    t.gameObject.SetActive(true);
+                    if (address[i] != PlayerPrefs.GetString("address"))
+                    {
+                        GameObject t = Instantiate(exButton, new Vector3(), Quaternion.identity);
+                        t.GetComponent<RectTransform>().SetParent(parents);
+                        t.GetComponentInChildren<Text>().fontSize = 40;
+                        t.GetComponentInChildren<Text>().font = label.GetComponent<Text>().font;
+                        t.GetComponentInChildren<Text>().color = Color.black;
+                        t.GetComponentInChildren<Text>().text = address[i];
+                        t.gameObject.SetActive(true);
+                    }
+
                 }
 
             }
@@ -743,6 +785,72 @@ public class Prometheum : MonoBehaviour
             Debug.Log("No Address");
         }
     }
+
+
+    public void GetAllAddressFromComingMessage()
+    {
+        Account.Address address = new Account.Address();
+        address.address = PlayerPrefs.GetString("address");
+        var httpWebRequest = (HttpWebRequest)WebRequest.Create(url + "get_address_coming_message");
+        httpWebRequest.ContentType = "application/json";
+        httpWebRequest.Method = "POST";
+
+        using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+        {
+            string json = JsonConvert.SerializeObject(address);
+            streamWriter.Write(json);
+        }
+
+        var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+        using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+        {
+            if (PlayerPrefs.HasKey("AddressList"))
+            {
+                var result = streamReader.ReadToEnd();
+                var comingAddress = JsonConvert.DeserializeObject<Account.AddressList>(result);
+                var allAddressList = PlayerPrefs.GetString("AddressList");
+                string[] splitAddress = allAddressList.Split(',');
+                var isSame = false;
+                if (comingAddress.addresslist.Count > 0)
+                {
+                    for (int i = 0; i < comingAddress.addresslist.Count; i++)
+                    {
+                        isSame = false;
+                        for (int j = 0; j < splitAddress.Length; j++)
+                        {
+                            if (comingAddress.addresslist[i] == splitAddress[j])
+                                isSame = true;
+                        }
+
+                        if (!isSame)
+                            allAddressList += comingAddress.addresslist[i] + ",";
+
+                    }
+
+                    PlayerPrefs.SetString("AddressList", allAddressList);
+                }
+            }
+            else
+            {
+                var result = streamReader.ReadToEnd();
+                var comingAddress = JsonConvert.DeserializeObject<Account.AddressList>(result);
+                string resultAddress = "";
+                if (comingAddress.addresslist.Count > 0)
+                {
+                    for (int i = 0; i < comingAddress.addresslist.Count; i++)
+                    {
+                        resultAddress += comingAddress.addresslist[i] + ",";
+                    }
+
+                    PlayerPrefs.SetString("AddressList", resultAddress);
+                }
+            }
+        }
+
+
+    }
+
+
 
 
     public void MineBlock()
@@ -873,7 +981,7 @@ public class Prometheum : MonoBehaviour
                     if (float.TryParse(amountText.GetComponent<TMP_InputField>().text, out sendingAmount))
                     {
                         //float.TryParse(amountText.GetComponent<TMP_InputField>().text, out sendingAmount);
-                        if (sendingAmount <= walletAmount)
+                        if (sendingAmount <= walletAmount && sendingAmount > 0)
                         {
                             Debug.Log("Success sending!");
                             string amount = "";
@@ -881,6 +989,10 @@ public class Prometheum : MonoBehaviour
                             amount += sendingAmount.ToString();
                             StartCoroutine(ShowTransactionSuccess("Transaction Success"));
                             SendTransactionPro(PlayerPrefs.GetString("address"), otherAddressText.GetComponent<TMP_InputField>().text, amount);
+                        }
+                        else
+                        {
+                            StartCoroutine(ShowTransactionIssue("You can not enough Pro!"));
                         }
                     }
                     else
@@ -903,7 +1015,7 @@ public class Prometheum : MonoBehaviour
     {
         transactionIssueMessage.gameObject.SetActive(true);
         transactionIssueMessage.color = Color.red;
-        transactionIssueMessage.GetComponent<TextMeshProUGUI>().text = message;
+        transactionIssueMessage.GetComponentInChildren<TextMeshProUGUI>().text = message;
         yield return new WaitForSeconds(1.5f);
         transactionIssueMessage.gameObject.SetActive(false);
 
@@ -913,11 +1025,20 @@ public class Prometheum : MonoBehaviour
     {
         transactionIssueMessage.gameObject.SetActive(true);
         transactionIssueMessage.color = Color.green;
-        transactionIssueMessage.GetComponent<TextMeshProUGUI>().text = message;
+        transactionIssueMessage.GetComponentInChildren<TextMeshProUGUI>().text = message;
         yield return new WaitForSeconds(1.5f);
         transactionIssueMessage.gameObject.SetActive(false);
     }
 
+    public void ScanQRButton()
+    {
+        scanQRObject.gameObject.SetActive(true);
+    }
+
+    public void CloseScanQR()
+    {
+        scanQRObject.gameObject.SetActive(false);
+    }
 
 
     // Update is called once per frame
