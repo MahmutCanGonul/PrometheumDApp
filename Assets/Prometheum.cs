@@ -29,9 +29,8 @@ public class Prometheum : MonoBehaviour
     public Image mineMessage;
     public Image saveWarningMessage;
     public RawImage qr_image;
+    public RawImage qr_image2;
     public Image transactionIssueMessage;
-
-
 
     public GameObject mainScreen;
     public GameObject messageScreen;
@@ -39,6 +38,7 @@ public class Prometheum : MonoBehaviour
     public GameObject walletScreen;
     public GameObject transactionScreen;
     public GameObject scanQRObject;
+    public GameObject createPaymentScreen;
 
 
     public TMP_InputField otherPublicAddress;
@@ -48,6 +48,7 @@ public class Prometheum : MonoBehaviour
     public GameObject scrollbar;
     public GameObject exButton;
     public GameObject addAddressBackground;
+    public TMP_InputField createPaymentInputField;
 
 
 
@@ -68,7 +69,7 @@ public class Prometheum : MonoBehaviour
             walletButton.gameObject.SetActive(true);
             try
             {
-                GetAllProCoinFromAddress(PlayerPrefs.GetString("address"));
+                GetAllProCoinFromAddress(PlayerPrefs.GetString("address"),proCoinText);
             }
             catch (Exception ex)
             {
@@ -310,7 +311,7 @@ public class Prometheum : MonoBehaviour
                     mineButton.gameObject.SetActive(true);
                     walletButton.gameObject.SetActive(true);
                     StartCoroutine(ShowSaveMessage());
-                    GetAllProCoinFromAddress(PlayerPrefs.GetString("address"));
+                    GetAllProCoinFromAddress(PlayerPrefs.GetString("address"),proCoinText);
                 }
             }
             else
@@ -335,7 +336,7 @@ public class Prometheum : MonoBehaviour
             mineButton.gameObject.SetActive(true);
             walletButton.gameObject.SetActive(true);
             StartCoroutine(ShowSaveMessage());
-            GetAllProCoinFromAddress(PlayerPrefs.GetString("address"));
+            GetAllProCoinFromAddress(PlayerPrefs.GetString("address"),proCoinText);
             PlayerPrefs.DeleteKey("AddressList");
         }
         else
@@ -422,7 +423,7 @@ public class Prometheum : MonoBehaviour
 
 
 
-    public void SendTransactionPro(string address, string otherAddress, string amount)
+    public void SendTransactionPro(string address, string otherAddress, string amount,TextMeshProUGUI proText)
     {
         Account.Transaction transaction = new Account.Transaction();
         transaction.sender = address;
@@ -443,7 +444,7 @@ public class Prometheum : MonoBehaviour
         using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
         {
             var result = streamReader.ReadToEnd();
-            GetAllProCoinFromAddress(PlayerPrefs.GetString("address"));
+            GetAllProCoinFromAddress(PlayerPrefs.GetString("address"),proText);
         }
 
 
@@ -637,6 +638,7 @@ public class Prometheum : MonoBehaviour
         messageScreen.gameObject.SetActive(false);
         listMessagesScreen.gameObject.SetActive(false);
         walletScreen.gameObject.SetActive(false);
+        createPaymentScreen.gameObject.SetActive(false);
     }
 
 
@@ -887,7 +889,7 @@ public class Prometheum : MonoBehaviour
 
 
                 StartCoroutine(ShowMineMessage(data.message));
-                GetAllProCoinFromAddress(address.address);
+                GetAllProCoinFromAddress(address.address,proCoinText);
 
 
             }
@@ -905,7 +907,7 @@ public class Prometheum : MonoBehaviour
     }
 
 
-    private void GetAllProCoinFromAddress(string address)
+    public void GetAllProCoinFromAddress(string address,TextMeshProUGUI proText)
     {
         Account.Address ad = new Account.Address();
         var isValid = ControlAddress(address);
@@ -928,7 +930,8 @@ public class Prometheum : MonoBehaviour
             {
                 var result = streamReader.ReadToEnd();
                 var data = JsonConvert.DeserializeObject<Account.Balance>(result);
-                proCoinText.text = data.balance + " Pro";
+                Debug.Log(data.balance);
+                proText.text = data.balance + " Pro";
 
 
             }
@@ -963,7 +966,7 @@ public class Prometheum : MonoBehaviour
 
     public void SendPro()
     {
-        GetAllProCoinFromAddress(PlayerPrefs.GetString("address"));
+        GetAllProCoinFromAddress(PlayerPrefs.GetString("address"),proCoinText);
         string[] takeCoin = proCoinText.text.Split(' ');
         float walletAmount;
         float.TryParse(takeCoin[0], out walletAmount);
@@ -988,7 +991,7 @@ public class Prometheum : MonoBehaviour
                             amount = "f0b6081f8b6f472b8d27ca04537e50c4d2a17d6f05fe466db0fbf89cfe1e51f0,";
                             amount += sendingAmount.ToString();
                             StartCoroutine(ShowTransactionSuccess("Transaction Success"));
-                            SendTransactionPro(PlayerPrefs.GetString("address"), otherAddressText.GetComponent<TMP_InputField>().text, amount);
+                            SendTransactionPro(PlayerPrefs.GetString("address"), otherAddressText.GetComponent<TMP_InputField>().text, amount,proCoinText);
                         }
                         else
                         {
@@ -1039,6 +1042,31 @@ public class Prometheum : MonoBehaviour
     {
         scanQRObject.gameObject.SetActive(false);
     }
+
+    public void CreatePaymentQRCode()
+    {
+        Generate_qr_code generateQR = new Generate_qr_code();
+        if (!string.IsNullOrEmpty(createPaymentInputField.text))
+        {
+            float pro;
+            if(float.TryParse(createPaymentInputField.text,out pro))
+            {
+                if(pro > 0)
+                {
+                    string data = PlayerPrefs.GetString("address") + "," + pro.ToString();
+                    var qr = generateQR.generate_qr_code(data);
+                    qr_image2.texture = qr;
+                }
+            }
+        }
+    }
+
+    public void CreatePaymentButton()
+    {
+        mainScreen.gameObject.SetActive(false);
+        createPaymentScreen.gameObject.SetActive(true);
+    }
+
 
 
     // Update is called once per frame

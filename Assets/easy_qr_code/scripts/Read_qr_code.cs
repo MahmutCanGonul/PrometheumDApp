@@ -29,6 +29,8 @@ namespace epoching.easy_qr_code
         public GameObject scanQRObject;
         public GameObject transactionScreen;
         public GameObject walletScreen;
+        public TextMeshProUGUI proText;
+        public Image warningPayment;
 
 
         void OnEnable()
@@ -87,6 +89,26 @@ namespace epoching.easy_qr_code
 
         private float interval_time = 0.1f;
         private float time_stamp = 0;
+
+        private IEnumerator SuccessPayment()
+        {
+            warningPayment.gameObject.SetActive(true);
+            warningPayment.GetComponentInChildren<TextMeshProUGUI>().text = "Payment Success";
+            warningPayment.color = Color.green;
+            yield return new WaitForSeconds(1.5f);
+            warningPayment.gameObject.SetActive(false);
+
+        }
+
+        private IEnumerator DenisedPayment()
+        {
+            warningPayment.gameObject.SetActive(true);
+            warningPayment.GetComponentInChildren<TextMeshProUGUI>().text = "Payment Denised";
+            warningPayment.color = Color.red;
+            yield return new WaitForSeconds(1.5f);
+            warningPayment.gameObject.SetActive(false);
+        }
+
         void Update()
         {
             if (this.is_reading)
@@ -108,7 +130,7 @@ namespace epoching.easy_qr_code
                             // decode the current frame
                             var result = barcodeReader.Decode(this.cam_texture.GetPixels32(), this.cam_texture.width, this.cam_texture.height);
                             Prometheum pro = new Prometheum();
-                            
+
                             if (result != null && pro.ControlAddress(result.Text))
                             {
                                 Canvas_confirm_box.confirm_box
@@ -138,6 +160,58 @@ namespace epoching.easy_qr_code
                                 this.is_reading = false;
 
                                 //this.audio_source.Play();
+                            }
+                            else
+                            {
+                                string[] splitData = result.Text.Split(',');
+                                if (splitData.Length == 2)
+                                {
+                                    float amount;
+                                    if (pro.ControlAddress(splitData[0]) && float.TryParse(splitData[1], out amount))
+                                    {
+                                        //Access the payment
+
+                                        Canvas_confirm_box.confirm_box
+                                     (
+                                         "Detect Payment",
+                                         "Address: "+splitData[0]+"&& Pro: "+splitData[1],
+                                         "CANCEL",
+                                         "PAY",
+                                          delegate ()
+                                          {
+                                              this.is_reading = true;
+                                          },
+                                          delegate ()
+                                          {
+                                              //If you click pay
+                                              string[] wallet = proText.text.Split(' ');
+                                              float walletAmount=0;
+                                              float needAmount = 0;
+                                              float.TryParse(wallet[0], out walletAmount);
+                                              float.TryParse(splitData[1], out walletAmount);
+                                              var proData = "f0b6081f8b6f472b8d27ca04537e50c4d2a17d6f05fe466db0fbf89cfe1e51f0,";
+                                              proData += splitData[1];
+                                              if (walletAmount >= needAmount)
+                                              {
+                                                  //Payment Success
+                                                  pro.SendTransactionPro(PlayerPrefs.GetString("address"),splitData[0],proData,proText);
+                                                  //pro.GetAllProCoinFromAddress(PlayerPrefs.GetString("address"),proText);
+                                                  StartCoroutine(SuccessPayment());
+                                              }
+                                              else
+                                              {
+                                                  StartCoroutine(DenisedPayment());
+                                              }
+                                              this.is_reading = true;
+                                          }
+                                     );
+
+
+                                        this.is_reading = false;
+
+                                    }
+
+                                }
                             }
                         }
                     }
