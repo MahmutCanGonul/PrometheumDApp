@@ -860,7 +860,7 @@ public class Prometheum : MonoBehaviour
         Account.Address address = new Account.Address();
         address.address = PlayerPrefs.GetString("address");
         var isValid = ControlAddress(address.address);
-        if (isValid)
+        if (isValid && ControlMineTimeFromAddress(address))
         {
             var httpWebRequest = (HttpWebRequest)WebRequest.Create(url + "mine_block");
             httpWebRequest.ContentType = "application/json";
@@ -894,17 +894,80 @@ public class Prometheum : MonoBehaviour
 
             }
         }
+        else
+        {
+            Debug.Log("You need to wait 5 hour!");
+            StartCoroutine(ShowIssueMineMessage("You must wait 5 hour for mine block!"));
+        }
 
     }
+
+
+    private bool ControlMineTimeFromAddress(Account.Address address)
+    {
+        bool isAccessMine = false;
+        var httpWebRequest = (HttpWebRequest)WebRequest.Create(url + "get_last_mining_time_from_address");
+        httpWebRequest.ContentType = "application/json";
+        httpWebRequest.Method = "POST";
+
+        using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+        {
+            string json = JsonConvert.SerializeObject(address);
+            streamWriter.Write(json);
+        }
+
+        var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+        using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+        {
+            var result = streamReader.ReadToEnd();
+            var data = JsonConvert.DeserializeObject<Account.MineDateTime>(result);
+            if (data.timestamp.Equals("-1"))
+            {
+                isAccessMine = true;
+            }
+            else
+            {
+                var mineTime = DateTime.Parse(data.timestamp);
+                var resultTime = DateTime.Now - mineTime;
+                if(resultTime.Days > 0)
+                {
+                    isAccessMine = true;
+                }
+                else
+                {
+                    if(resultTime.Hours >= 5)
+                    {
+                        isAccessMine = true;
+                    }
+                }
+            }
+        }
+
+        return isAccessMine;
+    }
+
+
 
     private IEnumerator ShowMineMessage(string message)
     {
         mineMessage.gameObject.SetActive(true);
+        mineMessage.color = Color.green;
         mineMessage.GetComponentInChildren<TextMeshProUGUI>().text = message;
         yield return new WaitForSeconds(1.5f);
         mineMessage.gameObject.SetActive(false);
 
     }
+
+    private IEnumerator ShowIssueMineMessage(string message)
+    {
+        mineMessage.gameObject.SetActive(true);
+        mineMessage.color = Color.red;
+        mineMessage.GetComponentInChildren<TextMeshProUGUI>().text = message;
+        yield return new WaitForSeconds(1.5f);
+        mineMessage.gameObject.SetActive(false);
+
+    }
+
 
 
     public void GetAllProCoinFromAddress(string address,TextMeshProUGUI proText)

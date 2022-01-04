@@ -66,6 +66,10 @@ public class Account
         public List<string> addresslist { get; set; }
     }
 
+    public class MineDateTime
+    {
+        public string timestamp { get; set; }
+    }
 
 
 }
